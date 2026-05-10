@@ -26,7 +26,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Discovery (mDNS + UDP)
 mdns-sd = "0.11"
-flume = "0.11"
+flume = "0.12"
 
 # Serial port (cross-platform)
 tokio-serial = "5.4"
