@@ -27,7 +27,7 @@ wifi-densepose-mat = { version = "0.3.0", path = "../wifi-densepose-mat" }
 clap = { version = "4.4", features = ["derive", "env", "cargo"] }
 
 # Output formatting
-colored = "2.1"
+colored = "3.1"
 tabled = { version = "0.15", features = ["ansi"] }
 indicatif = "0.17"
 console = "0.15"
