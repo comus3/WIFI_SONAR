@@ -5838,9 +5838,9 @@ dependencies = [
 
 [[package]]
 name = "ruvector-mincut"
-version = "2.0.4"
+version = "2.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d62e10cbb7d80b1e2b72d55c1e3eb7f0c4c5e3f31984bc3baa9b7a02700741e"
+checksum = "d60947433f740d0f589a2911d7b72a02e07a916e7257e478b14386f0ff068fb7"
 dependencies = [
  "anyhow",
  "crossbeam",
