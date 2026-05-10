@@ -24,7 +24,7 @@ mat = []
 wifi-densepose-mat = { version = "0.3.0", path = "../wifi-densepose-mat" }
 
 # CLI framework
-clap = { version = "4.4", features = ["derive", "env", "cargo"] }
+clap = { version = "4.6", features = ["derive", "env", "cargo"] }
 
 # Output formatting
 colored = "2.1"
