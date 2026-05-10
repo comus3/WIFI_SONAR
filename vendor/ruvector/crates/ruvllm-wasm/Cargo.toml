@@ -1,0 +1,79 @@
+[package]
+name = "ruvllm-wasm"
+version = "2.0.2"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+authors = ["Ruvector Team"]
+repository = "https://github.com/ruvnet/ruvector"
+description = "WASM bindings for RuvLLM - browser-compatible LLM inference runtime with WebGPU acceleration"
+keywords = ["wasm", "llm", "inference", "browser", "webgpu"]
+categories = ["wasm", "api-bindings", "web-programming"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# WASM bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+# Core web-sys features (always needed)
+web-sys = { version = "0.3", features = [
+    "console",
+    "Performance",
+    "Window",
+    "Navigator",
+    "Worker",
+    "WorkerOptions",
+    "WorkerType",
+    "Blob",
+    "BlobPropertyBag",
+    "Url",
+    "MessageEvent",
+    "ErrorEvent",
+    "DedicatedWorkerGlobalScope",
+] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+serde_json = "1.0"
+
+# Error handling
+console_error_panic_hook = { version = "0.1", optional = true }
+
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[features]
+default = ["console_error_panic_hook"]
+# WebGPU acceleration (adds GPU compute pipeline, shader compilation, buffer management)
+webgpu = ["web-sys/Gpu", "web-sys/GpuAdapter", "web-sys/GpuAdapterInfo",
+    "web-sys/GpuDevice", "web-sys/GpuQueue", "web-sys/GpuBuffer",
+    "web-sys/GpuBufferDescriptor", "web-sys/GpuShaderModule",
+    "web-sys/GpuShaderModuleDescriptor", "web-sys/GpuBindGroup",
+    "web-sys/GpuBindGroupDescriptor", "web-sys/GpuBindGroupEntry",
+    "web-sys/GpuBindGroupLayout", "web-sys/GpuBindGroupLayoutDescriptor",
+    "web-sys/GpuBindGroupLayoutEntry", "web-sys/GpuBufferBinding",
+    "web-sys/GpuBufferBindingLayout", "web-sys/GpuBufferBindingType",
+    "web-sys/GpuComputePipeline", "web-sys/GpuComputePipelineDescriptor",
+    "web-sys/GpuPipelineLayout", "web-sys/GpuPipelineLayoutDescriptor",
+    "web-sys/GpuProgrammableStage", "web-sys/GpuCommandEncoder",
+    "web-sys/GpuCommandEncoderDescriptor", "web-sys/GpuCommandBuffer",
+    "web-sys/GpuComputePassEncoder", "web-sys/GpuComputePassDescriptor",
+    "web-sys/GpuRequestAdapterOptions", "web-sys/GpuDeviceDescriptor"]
+# Enable parallel inference with Web Workers
+parallel = []
+# Enable SIMD optimizations (requires wasm-simd target feature)
+simd = []
+# Enable intelligent features (HNSW Router, MicroLoRA, SONA)
+intelligent = []
+# Enable Pi-Quantization for ultra-low-bit weight compression (ADR-090 Phase 4)
+pi-quant = []
+# Enable Quantization-Aware Training (requires pi-quant)
+qat = ["pi-quant"]

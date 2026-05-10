@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WiFi Pose 3D</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #111; font-family: monospace; }
+  canvas { display: block; }
+  #info { position: fixed; top: 12px; left: 16px; color: #8f8; font-size: 13px; z-index: 10; }
+  #status { position: fixed; bottom: 12px; left: 16px; color: #666; font-size: 12px; z-index: 10; }
+  #help { position: fixed; bottom: 12px; right: 16px; color: #444; font-size: 11px; z-index: 10; }
+</style>
+</head>
+<body>
+<div id="info">WiFi Pose 3D — connecting...</div>
+<div id="status"></div>
+<div id="help">drag = orbit | scroll = zoom | <b>R</b> = front view | <b>T</b> = top view | <b>S</b> = side view</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const info = document.getElementById('info');
+const statusEl = document.getElementById('status');
+
+// COCO 17-keypoint skeleton + left/right side hint for pseudo-Z
+const BONES = [
+  [5,7],[7,9],[6,8],[8,10], [5,6], [11,13],[13,15],[12,14],[14,16],
+  [11,12], [5,11],[6,12], [0,1],[0,2],[1,3],[2,4],
+];
+const JOINT_SIDE = [
+  0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0
+];
+
+// --- Scene ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111122);
+scene.fog = new THREE.Fog(0x111122, 4, 15);
+
+// Camera
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 30);
+camera.position.set(0, 0.6, 3.0);
+camera.lookAt(0, 0, 0);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+// Orbit controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 0.8;
+controls.maxDistance = 8;
+
+// Floor
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(6, 6),
+  new THREE.MeshPhongMaterial({ color: 0x222244, side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
+);
+floor.rotation.x = -Math.PI/2;
+floor.position.y = -1.2;
+scene.add(floor);
+
+// Grid
+const grid = new THREE.GridHelper(4, 20, 0x334466, 0x1a1a33);
+grid.position.y = -1.19;
+scene.add(grid);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x303050));
+const key = new THREE.DirectionalLight(0xffffff, 1.5);
+key.position.set(1.5, 2, 1.5);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x4466aa, 0.6);
+fill.position.set(-1, 0.5, -0.5);
+scene.add(fill);
+
+// --- Joints ---
+const jointGeom = new THREE.SphereGeometry(0.03, 16, 16);
+const jointMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, roughness: 0.3 });
+const joints = Array.from({length:17}, () => new THREE.Mesh(jointGeom, jointMat.clone()));
+joints.forEach((j,i) => {
+  if (i === 0) j.material.color.set(0xffff44); // nose = yellow
+  scene.add(j);
+});
+
+// Bones
+const boneLines = BONES.map(() => {
+  const mat = new THREE.LineBasicMaterial({ color: 0x44ccff });
+  const line = new THREE.Line(new THREE.BufferGeometry(), mat);
+  scene.add(line);
+  return line;
+});
+
+// Spine flourish
+const spineGeom = new THREE.CylinderGeometry(0.012, 0.012, 1, 8);
+const spine = new THREE.Mesh(spineGeom, new THREE.MeshStandardMaterial({ color: 0x335577, transparent: true, opacity: 0.4 }));
+scene.add(spine);
+
+// Status dot
+const dot = new THREE.Mesh(
+  new THREE.SphereGeometry(0.05, 8, 8),
+  new THREE.MeshStandardMaterial({ color: 0xff4444, emissive: 0xff0000, emissiveIntensity: 0.5 })
+);
+dot.position.set(-0.5, 1.4, 0);
+scene.add(dot);
+
+let poseReceived = false;
+let lastUpdate = 0;
+
+function updatePose(keypoints) {
+  if (!keypoints || keypoints.length < 17) return;
+  for (let i = 0; i < 17; i++) {
+    const [x, y] = keypoints[i];
+    const px = (x - 0.5) * 2.0;
+    const py = (1.0 - y) * 1.8 - 0.2;
+    const pz = (JOINT_SIDE[i] === 1) ? -0.15 : 0.15;
+    joints[i].position.set(px, py, pz);
+  }
+  BONES.forEach(([a,b], idx) => {
+    const g = new THREE.BufferGeometry().setFromPoints([joints[a].position, joints[b].position]);
+    boneLines[idx].geometry.dispose();
+    boneLines[idx].geometry = g;
+  });
+  // Spine indicator - hip center to shoulder center
+  const hipMid = joints[11].position.clone().add(joints[12].position).multiplyScalar(0.5);
+  const shMid  = joints[5].position.clone().add(joints[6].position).multiplyScalar(0.5);
+  const mid = hipMid.clone().add(shMid).multiplyScalar(0.5);
+  const len = hipMid.distanceTo(shMid);
+  spine.position.copy(mid);
+  spine.scale.y = Math.max(len * 0.7, 0.1);
+  spine.visible = len > 0.1;
+
+  poseReceived = true;
+  lastUpdate = Date.now();
+  dot.material.color.set(0x44ff44);
+  dot.material.emissive.set(0x00ff00);
+}
+
+const ws = new WebSocket('ws://localhost:3002');
+ws.onopen  = () => { info.textContent = 'WiFi Pose 3D — connected'; };
+ws.onclose = () => { info.textContent = 'WiFi Pose 3D — disconnected'; dot.material.color.set(0xff4444); };
+ws.onerror= () => { info.textContent = 'WiFi Pose 3D — error (is bridge running?)'; };
+ws.onmessage = (e) => {
+  try {
+    const m = JSON.parse(e.data);
+    if (m.pose_keypoints) updatePose(m.pose_keypoints);
+  } catch(_){}
+};
+
+setInterval(() => {
+  if (Date.now() - lastUpdate > 3000) dot.material.color.set(0xff8800);
+}, 1000);
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Keyboard shortcuts
+window.addEventListener('keydown', e => {
+  const t = controls.target;
+  switch(e.key.toLowerCase()) {
+    case 'r': camera.position.set(0,0.6,3); t.set(0,0,0); controls.update(); break;
+    case 't': camera.position.set(0,3,0.01); t.set(0,0,0); controls.update(); break;
+    case 's': camera.position.set(3,0.6,0); t.set(0,0,0); controls.update(); break;
+  }
+});
+</script>
+</body>
+</html>
