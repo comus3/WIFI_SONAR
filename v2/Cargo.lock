@@ -5860,9 +5860,9 @@ dependencies = [
 
 [[package]]
 name = "ruvector-solver"
-version = "2.0.4"
+version = "2.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce69cbde4ee5747281edb1d987a8292940397723924262b6218fc19022cbf687"
+checksum = "9be7c4f61940ae8b451f88b9a629a08ee8ee5c8e6b00ab96ca10ecf59e70f558"
 dependencies = [
  "dashmap",
  "getrandom 0.2.17",

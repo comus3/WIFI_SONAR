@@ -126,7 +126,7 @@ ruvector-core = "2.0.4"
 ruvector-mincut = "2.0.4"
 ruvector-attn-mincut = "2.0.4"
 ruvector-temporal-tensor = "2.0.4"
-ruvector-solver = "2.0.4"
+ruvector-solver = "2.0.6"
 ruvector-attention = "2.0.4"
 ruvector-crv = "0.1.1"
 ruvector-gnn = { version = "2.0.5", default-features = false }
