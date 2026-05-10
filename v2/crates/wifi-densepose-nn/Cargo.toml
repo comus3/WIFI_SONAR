@@ -53,7 +53,7 @@ memmap2 = "0.9"
 criterion.workspace = true
 proptest.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tempfile = "3.10"
+tempfile = "3.27"
 
 [[bench]]
 name = "inference_bench"

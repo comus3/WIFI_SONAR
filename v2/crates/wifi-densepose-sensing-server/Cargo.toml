@@ -51,4 +51,4 @@ wifi-densepose-wifiscan = { version = "0.3.0", path = "../wifi-densepose-wifisca
 wifi-densepose-signal = { version = "0.3.0", path = "../wifi-densepose-signal", default-features = false }
 
 [dev-dependencies]
-tempfile = "3.10"
+tempfile = "3.27"
