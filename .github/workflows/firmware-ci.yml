@@ -34,7 +34,7 @@ jobs:
             artifact_pt: partition-table-4mb.bin
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build firmware (${{ matrix.variant }})
         working-directory: firmware/esp32-csi-node
