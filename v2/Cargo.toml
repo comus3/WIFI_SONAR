@@ -93,7 +93,7 @@ pcap = "1.1"
 petgraph = "0.6"
 
 # Data loading
-ndarray-npy = "0.8"
+ndarray-npy = "0.10"
 walkdir = "2.4"
 
 # Hashing (for proof)
