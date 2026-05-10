@@ -97,7 +97,7 @@ ndarray-npy = "0.8"
 walkdir = "2.4"
 
 # Hashing (for proof)
-sha2 = "0.10"
+sha2 = "0.11"
 
 # CSV logging
 csv = "1.3"
