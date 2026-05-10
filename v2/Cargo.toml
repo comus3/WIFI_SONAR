@@ -90,7 +90,7 @@ serialport = "4.3"
 pcap = "1.1"
 
 # Graph algorithms (for min-cut assignment in metrics)
-petgraph = "0.6"
+petgraph = "0.8"
 
 # Data loading
 ndarray-npy = "0.8"
