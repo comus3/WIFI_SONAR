@@ -29,7 +29,7 @@ clap = { version = "4.4", features = ["derive", "env", "cargo"] }
 # Output formatting
 colored = "2.1"
 tabled = { version = "0.15", features = ["ansi"] }
-indicatif = "0.17"
+indicatif = "0.18"
 console = "0.15"
 
 # Async runtime
