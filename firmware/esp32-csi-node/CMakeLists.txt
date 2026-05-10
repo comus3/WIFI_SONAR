@@ -2,6 +2,13 @@
 # Requires ESP-IDF v5.2+
 cmake_minimum_required(VERSION 3.16)
 
+# CMake >=4.0 changhed CMP0167 default to NEW, requiring targets to exist
+# when target_link_libraries/target_sources is called. ESP-IDF v5.4 relies
+# on the OLD behavior (deferred resolution). Pin to OLD for compatibility.
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 OLD)
+endif()
+
 set(EXTRA_COMPONENT_DIRS "")
 
 # Read firmware version from version.txt so esp_app_get_description()->version

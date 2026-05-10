@@ -17,38 +17,50 @@ import struct
 import time
 
 
-def parse_csi_packet(data):
-    """Parse ADR-018 binary CSI packet into dict."""
-    if len(data) < 8:
+CSI_MAGIC = 0xC5110001
+
+def parse_csi_packet(data, src_ip=None, ip_node_map=None):
+    """Parse ADR-018 CSI frame with 20-byte header.
+
+    Filters strictly by magic 0xC5110001.  Non-CSI packets (edge vitals
+    0xC5110002, features 0xC5110003, fused 0xC5110005, etc.) carry
+    breathing/HR/presence — not CSI amplitudes — and are skipped.
+    """
+    if len(data) < 20:
         return None
 
-    # ADR-018 header: [magic(2), len(2), node_id(1), seq(1), rssi(1), channel(1), iq_data...]
-    # Simplified: extract what we can from the raw packet
-    node_id = data[4] if len(data) > 4 else 0
-    rssi = struct.unpack('b', bytes([data[6]]))[0] if len(data) > 6 else 0
-    channel = data[7] if len(data) > 7 else 0
+    magic = struct.unpack_from('<I', data, 0)[0]
+    if magic != CSI_MAGIC:
+        return None
 
-    # IQ data starts at offset 8
-    iq_data = data[8:] if len(data) > 8 else b''
-    n_subcarriers = len(iq_data) // 2  # I,Q pairs
+    # 20-byte header: [magic(4), node_id, antennas, n_sub(2), freq(4), seq(4), rssi, noise, resv(2), IQ...]
+    node_id = data[4]
+    n_antennas = data[5]
+    n_subcarriers = struct.unpack_from('<H', data, 6)[0]
+    freq_mhz = struct.unpack_from('<I', data, 8)[0]
+    rssi = struct.unpack_from('b', data, 16)[0]
 
-    # Compute amplitudes
+    if ip_node_map and src_ip in ip_node_map:
+        node_id = ip_node_map[src_ip]
+
+    # IQ data starts at byte 20
+    iq_data = data[20:]
+    n_pairs = min(len(iq_data) - 1, n_subcarriers * n_antennas * 2)
+
     amplitudes = []
-    for i in range(0, len(iq_data) - 1, 2):
-        I = struct.unpack('b', bytes([iq_data[i]]))[0]
-        Q = struct.unpack('b', bytes([iq_data[i + 1]]))[0]
-        amplitudes.append(round((I * I + Q * Q) ** 0.5, 2))
+    for i in range(0, n_pairs, 2):
+        I_val = struct.unpack('b', bytes([iq_data[i]]))[0]
+        Q_val = struct.unpack('b', bytes([iq_data[i + 1]]))[0]
+        amplitudes.append(round((I_val * I_val + Q_val * Q_val) ** 0.5, 2))
 
     return {
         "type": "raw_csi",
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(time.time() * 1000) % 1000:03d}Z",
         "ts_ns": time.time_ns(),
         "node_id": node_id,
+        "subcarriers": len(amplitudes),
         "rssi": rssi,
-        "channel": channel,
-        "subcarriers": n_subcarriers,
         "amplitudes": amplitudes,
-        "iq_hex": iq_data.hex(),
     }
 
 
@@ -57,7 +69,17 @@ def main():
     parser.add_argument("--port", type=int, default=5005, help="UDP port (default: 5005)")
     parser.add_argument("--duration", type=int, default=300, help="Duration in seconds (default: 300)")
     parser.add_argument("--output", default="data/recordings", help="Output directory")
+    parser.add_argument("--ip-node-map", type=str, default=None,
+                        help="Comma-separated IP:node_id overrides (e.g. '192.168.0.201:1,192.168.0.202:2')")
     args = parser.parse_args()
+
+    # Parse IP->node_id map
+    ip_node_map = {}
+    if args.ip_node_map:
+        for pair in args.ip_node_map.split(","):
+            ip, nid = pair.strip().split(":")
+            ip_node_map[ip.strip()] = int(nid.strip())
+        print(f"IP->node_id map: {ip_node_map}")
 
     os.makedirs(args.output, exist_ok=True)
     filename = f"csi-{int(time.time())}.csi.jsonl"
@@ -80,7 +102,7 @@ def main():
             while time.time() - start < args.duration:
                 try:
                     data, addr = sock.recvfrom(4096)
-                    frame = parse_csi_packet(data)
+                    frame = parse_csi_packet(data, src_ip=addr[0], ip_node_map=ip_node_map)
                     if frame:
                         f.write(json.dumps(frame) + "\n")
                         count += 1

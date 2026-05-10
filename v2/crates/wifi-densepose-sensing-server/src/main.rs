@@ -26,7 +26,7 @@ use wifi_densepose_sensing_server::{graph_transformer, trainer, dataset, embeddi
 
 use std::collections::{HashMap, VecDeque};
 use ruvector_mincut::{DynamicMinCut, MinCutBuilder};
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -162,6 +162,12 @@ struct Args {
     /// Node positions for multistatic fusion (format: "x,y,z;x,y,z;...")
     #[arg(long, env = "SENSING_NODE_POSITIONS")]
     node_positions: Option<String>,
+
+    /// IP→node_id overrides (format: "192.168.0.200:0,192.168.0.201:1,...")
+    /// Workaround for firmware build #390 bug where WiFi init clobbers
+    /// NVS-loaded node_id back to Kconfig default of 1.
+    #[arg(long, env = "SENSING_IP_NODE_MAP")]
+    ip_node_map: Option<String>,
 
     /// Start field model calibration on boot (empty room required)
     #[arg(long)]
@@ -3633,9 +3639,23 @@ async fn info_page() -> Html<String> {
     ))
 }
 
+/// Parse `--ip-node-map "ip:nid,ip:nid,..."` into a HashMap.
+fn parse_ip_node_map(raw: &str) -> HashMap<IpAddr, u8> {
+    let mut map = HashMap::new();
+    for pair in raw.split(',') {
+        let mut parts = pair.trim().splitn(2, ':');
+        if let (Some(ip_str), Some(nid_str)) = (parts.next(), parts.next()) {
+            if let (Ok(ip), Ok(nid)) = (ip_str.trim().parse::<IpAddr>(), nid_str.trim().parse::<u8>()) {
+                map.insert(ip, nid);
+            }
+        }
+    }
+    map
+}
+
 // ── UDP receiver task ────────────────────────────────────────────────────────
 
-async fn udp_receiver_task(state: SharedState, udp_port: u16) {
+async fn udp_receiver_task(state: SharedState, udp_port: u16, ip_node_map: HashMap<IpAddr, u8>) {
     let addr = format!("0.0.0.0:{udp_port}");
     let socket = match UdpSocket::bind(&addr).await {
         Ok(s) => {
@@ -3683,7 +3703,10 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                     s.last_esp32_frame = Some(std::time::Instant::now());
 
                     // ── Per-node state for edge vitals (issue #249) ──────
-                    let node_id = vitals.node_id;
+                    let mut node_id = vitals.node_id;
+                    if let Some(&mapped) = ip_node_map.get(&src.ip()) {
+                        node_id = mapped;
+                    }
                     let ns = s.node_states.entry(node_id).or_insert_with(NodeState::new);
                     ns.last_frame_time = Some(std::time::Instant::now());
                     ns.edge_vitals = Some(vitals.clone());
@@ -3876,7 +3899,10 @@ async fn udp_receiver_task(state: SharedState, udp_port: u16) {
                     // ESP32 nodes never mix their smoothing/vitals buffers.
                     // We scope the mutable borrow of node_states so we can
                     // access other AppStateInner fields afterward.
-                    let node_id = frame.node_id;
+                    let mut node_id = frame.node_id;
+                    if let Some(&mapped) = ip_node_map.get(&src.ip()) {
+                        node_id = mapped;
+                    }
                     // Clone adaptive model before mutable borrow of node_states
                     // to avoid unsafe raw pointer (review finding #2).
                     let adaptive_model_clone = s.adaptive_model.clone();
@@ -4843,10 +4869,15 @@ async fn main() {
         },
     }));
 
+    // Parse IP→node_id override map for firmware bug #390
+    let ip_node_map = args.ip_node_map.as_deref()
+        .map(|s| parse_ip_node_map(s))
+        .unwrap_or_default();
+
     // Start background tasks based on source
     match source {
         "esp32" => {
-            tokio::spawn(udp_receiver_task(state.clone(), args.udp_port));
+            tokio::spawn(udp_receiver_task(state.clone(), args.udp_port, ip_node_map));
             tokio::spawn(broadcast_tick_task(state.clone(), args.tick_ms));
         }
         "wifi" => {

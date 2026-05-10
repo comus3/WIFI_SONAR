@@ -209,11 +209,16 @@ function selectTopSubcarriers(samples, dim, T, topK) {
  */
 function reduceSubcarriers(sample, selectedIndices, T) {
   const topK = selectedIndices.length;
+  const maxSrcDim = Math.floor(sample.csi.length / T);
   const reduced = new Float32Array(topK * T);
   for (let k = 0; k < topK; k++) {
     const srcD = selectedIndices[k];
     for (let t = 0; t < T; t++) {
-      reduced[k * T + t] = sample.csi[srcD * T + t];
+      if (srcD < maxSrcDim) {
+        reduced[k * T + t] = sample.csi[srcD * T + t];
+      } else {
+        reduced[k * T + t] = 0;
+      }
     }
   }
   return { ...sample, csi: reduced, csiDim: topK };
@@ -1257,6 +1262,33 @@ async function main() {
   console.log(`  [O7] Top-5 attention subcarriers: [${topAttnIdx.join(', ')}]`);
 
   // -----------------------------------------------------------------------
+  // O7b: Z-score normalization per subcarrier (for export + stable training)
+  // -----------------------------------------------------------------------
+  const normMeans = new Float64Array(inputDim);
+  const normStds  = new Float64Array(inputDim);
+  for (let d = 0; d < inputDim; d++) {
+    let m = 0, count = 0;
+    for (const s of allSamples) {
+      for (let t = 0; t < T; t++) { m += s.csi[d * T + t]; count++; }
+    }
+    m /= Math.max(count, 1);
+    let v = 0;
+    for (const s of allSamples) {
+      for (let t = 0; t < T; t++) { const diff = s.csi[d * T + t] - m; v += diff * diff; }
+    }
+    normMeans[d] = m;
+    normStds[d] = Math.sqrt(v / Math.max(count, 1)) + 1e-8;
+  }
+  for (const s of allSamples) {
+    for (let d = 0; d < inputDim; d++) {
+      for (let t = 0; t < T; t++) {
+        s.csi[d * T + t] = (s.csi[d * T + t] - normMeans[d]) / normStds[d];
+      }
+    }
+  }
+  console.log(`  [O7b] Z-score normalized — mean range: [${Math.min(...normMeans).toFixed(1)}, ${Math.max(...normMeans).toFixed(1)}] std range: [${Math.min(...normStds).toFixed(1)}, ${Math.max(...normStds).toFixed(1)}]`);
+
+  // -----------------------------------------------------------------------
   // O8: DynamicMinCut person separation (ruvector-mincut inspired)
   // -----------------------------------------------------------------------
   if (inputDim >= 16) {
@@ -1393,7 +1425,7 @@ async function main() {
   console.log(`[4/6] Phase 2: Supervised keypoint regression (${supervisedEpochs} epochs, 4-stage curriculum)...`);
 
   const supervisedLog = { phase: 'supervised', epochs: [] };
-  const epochsPerStage = Math.floor(supervisedEpochs / CONFIG.curriculumStages.length);
+  const epochsPerStage = Math.max(1, Math.floor(supervisedEpochs / CONFIG.curriculumStages.length));
 
   for (let epoch = 0; epoch < supervisedEpochs; epoch++) {
     // Determine curriculum stage
@@ -1600,10 +1632,16 @@ async function main() {
       inputDim,
       timeSteps: T,
       numKeypoints: CONFIG.numKeypoints,
-      tcnChannels: [inputDim, 256, 256, 192, 128],
-      tcnKernel: 7,
-      tcnDilations: [1, 2, 4, 8],
-      fcDims: [128 * T, 2048, CONFIG.numKeypoints * 2],
+      tcnChannels: SCALE.tcnChannels.slice(0, SCALE.tcnBlocks),
+      tcnKernel: SCALE.kernel,
+      tcnBlocks: SCALE.tcnBlocks,
+      hiddenDim: SCALE.hiddenDim,
+    },
+    normalization: {
+      means: Array.from(normMeans),
+      stds: Array.from(normStds),
+      topK: selectedSubcarriers ? Array.from(selectedSubcarriers) : [],
+      attentionWeights: Array.from(subcarrierAttention),
     },
     totalParams: model.totalParams(),
     weightsBase64: Buffer.from(weights.buffer).toString('base64'),

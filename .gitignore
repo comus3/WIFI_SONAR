@@ -252,3 +252,27 @@ firmware/esp32-csi-node/build_firmware.batdata/
 models/
 demo_pointcloud.ply
 demo_splats.json
+
+# Training data (large files, machine-specific)
+data/recordings/
+data/ground-truth/
+data/paired/
+data/.cache/
+# Empty dirs (recordings data ignored)
+!data/recordings/.gitkeep
+!data/ground-truth/.gitkeep
+!data/paired/.gitkeep
+# Node.js
+node_modules/
+# OS files
+.DS_Store
+Thumbs.db
+# Python
+__pycache__/
+*.pyc
+.venv/
+uv.lock
+
+# IDE
+.vscode/
+.cursor/
