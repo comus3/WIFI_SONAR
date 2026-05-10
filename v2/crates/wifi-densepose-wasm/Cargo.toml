@@ -55,7 +55,7 @@ futures = "0.3"
 chrono = { version = "0.4", features = ["serde", "wasmbind"] }
 
 # UUID generation (with JS random support)
-uuid = { version = "1.6", features = ["v4", "serde", "js"] }
+uuid = { version = "1.23", features = ["v4", "serde", "js"] }
 getrandom = { version = "0.2", features = ["js"] }
 
 # Optional: wifi-densepose-mat integration

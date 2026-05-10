@@ -55,7 +55,7 @@ ndarray = "0.15"
 rustfft = "6.1"
 
 # Utilities
-uuid = { version = "1.6", features = ["v4", "serde"] }
+uuid = { version = "1.23", features = ["v4", "serde"] }
 tracing = "0.1"
 parking_lot = "0.12"
 
