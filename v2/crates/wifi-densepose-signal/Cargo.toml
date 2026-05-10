@@ -49,7 +49,7 @@ wifi-densepose-core = { version = "0.3.0", path = "../wifi-densepose-core" }
 wifi-densepose-ruvector = { version = "0.3.0", path = "../wifi-densepose-ruvector", default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 proptest.workspace = true
 
 [[bench]]
