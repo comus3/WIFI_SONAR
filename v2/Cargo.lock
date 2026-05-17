@@ -3440,9 +3440,9 @@ dependencies = [
 
 [[package]]
 name = "midstreamer-scheduler"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9296b3f0a2b04e5c1a378ee7926e9f892895bface2ccebcfa407450c3aca269"
+checksum = "a8085dbcfb13808d075c0b31681022b41acc1c8021313d45fa7461e97d7767ff"
 dependencies = [
  "crossbeam",
  "parking_lot",
