@@ -39,7 +39,7 @@ sha2 = "0.10"
 hmac = "0.12"
 
 # System info for server management
-sysinfo = "0.32"
+sysinfo = "0.39"
 
 # Async utilities
 futures = "0.3"
