@@ -115,7 +115,7 @@ mockall = "0.12"
 wiremock = "0.5"
 
 # midstreamer integration (published on crates.io)
-midstreamer-quic = "0.1.0"
+midstreamer-quic = "0.3.0"
 midstreamer-scheduler = "0.1.0"
 midstreamer-temporal-compare = "0.1.0"
 midstreamer-attractor = "0.1.0"
