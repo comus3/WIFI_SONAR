@@ -117,7 +117,7 @@ wiremock = "0.5"
 # midstreamer integration (published on crates.io)
 midstreamer-quic = "0.1.0"
 midstreamer-scheduler = "0.1.0"
-midstreamer-temporal-compare = "0.1.0"
+midstreamer-temporal-compare = "0.2.1"
 midstreamer-attractor = "0.1.0"
 
 # ruvector integration (published on crates.io)
